@@ -55,39 +55,38 @@ if uploaded_file and groq_key:
 
     # Step 3: Web search enrichment
     if use_web_search:
-        with st.spinner("🌐 Searching for missing information..."):
-            # Enrich sender EORI if missing but SIREN exists
-            # Only try to find missing EORI if shipment type is NOT C2C
-shipment_type = invoice_data.get("type_of_shipment", "")
-if shipment_type != "C2C":
-    if not invoice_data.get("sender_eori") and invoice_data.get("sender_siren"):
-        eori = find_eori_from_siren(invoice_data["sender_siren"])
-        if eori:
-            invoice_data["sender_eori"] = eori
+            with st.spinner("🌐 Searching for missing information..."):
+        # Only try to find missing EORI if shipment type is NOT C2C
+        shipment_type = invoice_data.get("type_of_shipment", "")
+        if shipment_type != "C2C":
+            if not invoice_data.get("sender_eori") and invoice_data.get("sender_siren"):
+                eori = find_eori_from_siren(invoice_data["sender_siren"])
+                if eori:
+                    invoice_data["sender_eori"] = eori
 
-    if not invoice_data.get("sender_eori") and invoice_data.get("sender_name"):
-        postal_match = re.search(r'\b(\d{5})\b', raw_text)
-        postal_code = postal_match.group(1) if postal_match else None
-        if postal_code:
-            eori = find_eori_from_name_and_postal(invoice_data["sender_name"], postal_code)
-            if eori:
-                invoice_data["sender_eori"] = eori
-else:
-    # For C2C, ensure sender_eori remains null (no search)
-    invoice_data["sender_eori"] = None
+            if not invoice_data.get("sender_eori") and invoice_data.get("sender_name"):
+                postal_match = re.search(r'\b(\d{5})\b', raw_text)
+                postal_code = postal_match.group(1) if postal_match else None
+                if postal_code:
+                    eori = find_eori_from_name_and_postal(invoice_data["sender_name"], postal_code)
+                    if eori:
+                        invoice_data["sender_eori"] = eori
+        else:
+            # For C2C, ensure sender_eori remains null (no search)
+            invoice_data["sender_eori"] = None
 
-            # Airport code based on receiver country
-            if invoice_data.get("receiver_country"):
-                airport_code = get_airport_code(invoice_data["receiver_country"])
-                if airport_code:
-                    invoice_data["airport_code"] = airport_code
+        # Airport code based on receiver country
+        if invoice_data.get("receiver_country"):
+            airport_code = get_airport_code(invoice_data["receiver_country"])
+            if airport_code:
+                invoice_data["airport_code"] = airport_code
 
-            # HS codes for commodities
-            for idx, item in enumerate(invoice_data.get("commodities", [])):
-                if not item.get("hs_code") and (item.get("common_name_en") or item.get("description_original")):
-                    hs = get_hs_code_for_commodity(item)
-                    if hs:
-                        invoice_data["commodities"][idx]["hs_code"] = hs
+        # HS codes for commodities
+        for idx, item in enumerate(invoice_data.get("commodities", [])):
+            if not item.get("hs_code") and (item.get("common_name_en") or item.get("description_original")):
+                hs = get_hs_code_for_commodity(item)
+                if hs:
+                    invoice_data["commodities"][idx]["hs_code"] = hs
 
     # Display results
     st.subheader("📋 Extracted Customs Information")
