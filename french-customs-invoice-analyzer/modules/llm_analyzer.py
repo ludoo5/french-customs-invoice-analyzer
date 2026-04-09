@@ -7,10 +7,12 @@ You are an expert in French customs and invoice analysis.
 Extract the following fields from the invoice text. Return ONLY valid JSON.
 If a field is not present, set it to null.
 
-Rules:
-- sender_eori: look for a 14‑digit number starting with "FR". If not found, look for a SIREN (9 digits) and note it in sender_siren.
-- receiver_eori: any tax ID format, extract as is.
-- type_of_shipment: B2B, B2C, C2C, C2B.
+IMPORTANT RULES:
+- sender_eori: extract any tax ID / EORI / VAT number exactly as written on the invoice.
+  It can start with FR, BE, DE, NL, etc., or be a plain number. Do not modify it.
+  If the invoice shows no tax ID for the sender, set sender_eori = null.
+- For C2C (consumer to consumer) shipments, sender_eori and receiver_eori can be null – no need to search.
+- type_of_shipment: determine from context (B2B, B2C, C2B, C2C). If both names look like individuals → C2C.
 - value: Calculate VAT‑free total = (sum of merchandise net prices) + shipping (VAT-free) - discounts + deposit.
 - commodities: For each line item, provide common English name and material.
 
@@ -23,7 +25,7 @@ Fields:
   "receiver_eori": str or null,
   "receiver_country": str or null,
   "document_number": str,
-  "type_of_shipment": str or null,
+  "type_of_shipment": "B2B" | "B2C" | "C2B" | "C2C" | null,
   "value": float or null,
   "airport_code": null,
   "commodities": [
@@ -55,27 +57,15 @@ def analyze_invoice(text, api_key):
         )
         content = response.choices[0].message.content
 
-        # 🔍 Log the raw response (visible in Streamlit logs)
-        print("=" * 50)
-        print("RAW GROQ RESPONSE:")
-        print(content)
-        print("=" * 50)
-
-        # Clean the response: remove markdown code blocks and any text outside JSON
+        # Clean markdown and extract JSON between first { and last }
         content = re.sub(r'^```json\s*', '', content)
         content = re.sub(r'\s*```$', '', content)
-        
-        # Find the first '{' and the last '}' to extract pure JSON
         start = content.find('{')
         end = content.rfind('}')
         if start != -1 and end != -1 and end > start:
             json_str = content[start:end+1]
             return json.loads(json_str)
         else:
-            # If no braces found, try parsing the whole content
             return json.loads(content)
-
-    except json.JSONDecodeError as e:
-        return {"error": f"JSON parse error: {str(e)}", "raw_response": content if 'content' in locals() else None}
     except Exception as e:
         return {"error": str(e)}
