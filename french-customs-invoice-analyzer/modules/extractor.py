@@ -1,7 +1,11 @@
 import pdfplumber
-import pytesseract
+import easyocr
 from PIL import Image
 import io
+import numpy as np
+
+# Initialize EasyOCR reader once (French + English)
+reader = easyocr.Reader(['fr', 'en'], gpu=False)
 
 def extract_text_from_pdf(file_bytes):
     text = ""
@@ -17,8 +21,13 @@ def extract_text_from_pdf(file_bytes):
 
 def extract_text_from_image(file_bytes):
     try:
+        # Open image with PIL
         image = Image.open(io.BytesIO(file_bytes))
-        text = pytesseract.image_to_string(image, lang="fra+eng")
+        # Convert PIL image to numpy array (EasyOCR expects numpy array)
+        image_np = np.array(image)
+        # Perform OCR
+        result = reader.readtext(image_np, detail=0, paragraph=True)
+        text = " ".join(result)
         return text
     except Exception as e:
         return f"Error extracting image text: {str(e)}"
