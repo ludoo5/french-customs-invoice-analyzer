@@ -1,0 +1,8 @@
+streamlit
+pdfplumber
+pytesseract
+pillow
+langdetect
+groq
+ddgs
+pandas

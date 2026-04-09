@@ -1,0 +1,61 @@
+from groq import Groq
+import json
+import re
+
+CUSTOMS_PROMPT = """
+You are an expert in French customs and invoice analysis.
+Extract the following fields from the invoice text. Return ONLY valid JSON.
+If a field is not present, set it to null.
+
+Rules:
+- sender_eori: look for a 14‑digit number starting with "FR". If not found, look for a SIREN (9 digits) and note it in sender_siren.
+- receiver_eori: any tax ID format, extract as is.
+- type_of_shipment: B2B, B2C, C2C, C2B.
+- value: Calculate VAT‑free total = (sum of merchandise net prices) + shipping (VAT-free) - discounts + deposit.
+- commodities: For each line item, provide common English name and material.
+
+Fields:
+{
+  "sender_name": str,
+  "sender_eori": str or null,
+  "sender_siren": str or null,
+  "receiver_name": str,
+  "receiver_eori": str or null,
+  "receiver_country": str or null,
+  "document_number": str,
+  "type_of_shipment": str or null,
+  "value": float or null,
+  "airport_code": null,
+  "commodities": [
+    {
+      "description_original": str,
+      "common_name_en": str,
+      "material": str or null,
+      "quantity": float,
+      "hs_code": str or null,
+      "country_of_origin": str or null
+    }
+  ]
+}
+
+Invoice text:
+{text}
+"""
+
+def analyze_invoice(text, api_key):
+    client = Groq(api_key=api_key)
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are a customs invoice parser. Return ONLY valid JSON."},
+                {"role": "user", "content": CUSTOMS_PROMPT.format(text=text[:12000])}
+            ],
+            temperature=0
+        )
+        content = response.choices[0].message.content
+        content = re.sub(r'^```json\s*', '', content)
+        content = re.sub(r'\s*```$', '', content)
+        return json.loads(content)
+    except Exception as e:
+        return {"error": str(e)}

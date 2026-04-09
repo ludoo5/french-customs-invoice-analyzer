@@ -1,0 +1,18 @@
+import re
+from .web_search import search_text
+
+def get_hs_code(description):
+    if not description:
+        return None
+    query = f"HS code {description}"
+    results = search_text(query, max_results=3)
+    for res in results:
+        matches = re.findall(r'\b(\d{6,})\b', res)
+        for m in matches:
+            if 6 <= len(m) <= 10:
+                return m[:6]
+    return None
+
+def get_hs_code_for_commodity(commodity):
+    desc = commodity.get('common_name_en') or commodity.get('description_original')
+    return get_hs_code(desc)

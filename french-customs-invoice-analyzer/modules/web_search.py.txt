@@ -1,0 +1,19 @@
+from ddgs import DDGS
+
+def search(query, max_results=3):
+    results = []
+    try:
+        with DDGS() as ddgs:
+            for r in ddgs.text(query, max_results=max_results):
+                results.append({
+                    'title': r.get('title', ''),
+                    'body': r.get('body', ''),
+                    'href': r.get('href', '')
+                })
+    except Exception as e:
+        print(f"Search error: {e}")
+    return results
+
+def search_text(query, max_results=3):
+    results = search(query, max_results)
+    return [r.get('body', '') for r in results]
