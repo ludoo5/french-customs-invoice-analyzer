@@ -43,7 +43,6 @@ Important rules:
 - value: VAT‑free total in EUR (from invoice total)
 - commodities: extract from the table – each row.
 - type_of_shipment: B2B if both sender and receiver are businesses.
-- For Switzerland, airport code is often ZRH or GVA (but leave null, we'll fill later).
 
 Invoice image attached."""
     
