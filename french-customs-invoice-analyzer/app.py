@@ -19,15 +19,23 @@ with st.sidebar:
     # Try to get Groq key from Streamlit secrets first, else ask user
     groq_key = st.secrets.get("GROQ_API_KEY", "")
     if not groq_key:
-        groq_key = st.text_input("Groq API Key", type="password",
-                                 help="Required for invoice analysis. Get from https://console.groq.com")
+        groq_key = st.text_input(
+            "Groq API Key",
+            type="password",
+            help="Required for invoice analysis. Get from https://console.groq.com"
+        )
 
-    use_web_search = st.checkbox("Enable Web Search", value=True,
-                                 help="Use DuckDuckGo (free) to fill missing information")
+    use_web_search = st.checkbox(
+        "Enable Web Search",
+        value=True,
+        help="Use DuckDuckGo (free) to fill missing information"
+    )
 
     st.markdown("---")
-    uploaded_file = st.file_uploader("Upload invoice (PDF/PNG/JPG)",
-                                     type=["pdf", "png", "jpg", "jpeg"])
+    uploaded_file = st.file_uploader(
+        "Upload invoice (PDF/PNG/JPG)",
+        type=["pdf", "png", "jpg", "jpeg"]
+    )
 
 # Main processing
 if uploaded_file and groq_key:
@@ -51,11 +59,11 @@ if uploaded_file and groq_key:
 
     # Step 3: Handle analysis error
     if "error" in invoice_data:
-    st.error(f"Analysis failed: {invoice_data['error']}")
-    if "raw_response" in invoice_data:
-        st.text("Raw Groq response (first 1000 chars):")
-        st.code(invoice_data["raw_response"])
-    st.stop()
+        st.error(f"Analysis failed: {invoice_data['error']}")
+        if "raw_response" in invoice_data:
+            st.text("Raw Groq response (first 1000 chars):")
+            st.code(invoice_data["raw_response"])
+        st.stop()
 
     # Step 4: Web search enrichment
     if use_web_search:
@@ -72,7 +80,9 @@ if uploaded_file and groq_key:
                     postal_match = re.search(r'\b(\d{5})\b', raw_text)
                     postal_code = postal_match.group(1) if postal_match else None
                     if postal_code:
-                        eori = find_eori_from_name_and_postal(invoice_data["sender_name"], postal_code)
+                        eori = find_eori_from_name_and_postal(
+                            invoice_data["sender_name"], postal_code
+                        )
                         if eori:
                             invoice_data["sender_eori"] = eori
             else:
@@ -87,7 +97,9 @@ if uploaded_file and groq_key:
 
             # HS codes for commodities
             for idx, item in enumerate(invoice_data.get("commodities", [])):
-                if not item.get("hs_code") and (item.get("common_name_en") or item.get("description_original")):
+                if not item.get("hs_code") and (
+                    item.get("common_name_en") or item.get("description_original")
+                ):
                     hs = get_hs_code_for_commodity(item)
                     if hs:
                         invoice_data["commodities"][idx]["hs_code"] = hs
@@ -121,10 +133,12 @@ if uploaded_file and groq_key:
         st.info("No line items found.")
 
     # Download button
-    st.download_button("💾 Download JSON Report",
-                       data=json.dumps(invoice_data, indent=2, ensure_ascii=False),
-                       file_name="customs_invoice_report.json",
-                       mime="application/json")
+    st.download_button(
+        "💾 Download JSON Report",
+        data=json.dumps(invoice_data, indent=2, ensure_ascii=False),
+        file_name="customs_invoice_report.json",
+        mime="application/json"
+    )
 
 elif uploaded_file and not groq_key:
     st.warning("⚠️ Please enter your Groq API Key in the sidebar.")
