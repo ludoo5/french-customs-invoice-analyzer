@@ -35,7 +35,7 @@ if uploaded_file and parseur_api_key and parseur_mailbox_id:
     
     # Step 1: Parse invoice with Parseur
     with st.spinner("🔍 Sending invoice to Parseur for analysis..."):
-        invoice_data = analyze_invoice_with_parseur(file_bytes, parseur_mailbox_id)
+        invoice_data = analyze_invoice_with_parseur(file_bytes, parseur_mailbox_id, parseur_api_key)
     
     if invoice_data is None:
         st.error("Parseur analysis failed. Please check your mailbox ID and API key, and ensure the invoice format is supported.")
