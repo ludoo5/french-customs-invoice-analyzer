@@ -7,14 +7,15 @@ def analyze_invoice_with_parseur(file_bytes, mailbox_id, api_key):
     Upload an invoice to Parseur and wait for the extracted data.
     Returns a dictionary matching the required schema, or None on failure.
     """
-    # 1. Upload document
-    upload_url = f"https://api.parseur.com/api/mailboxes/{mailbox_id}/documents"
+    # 1. Upload document using the correct endpoint
+    upload_url = f"https://api.parseur.com/parser/{mailbox_id}/upload"
     headers = {
-        "Authorization": f"Token {api_key}",
-        "Content-Type": "application/octet-stream"
+        "Authorization": f"Token {api_key}"
     }
+    files = {'file': file_bytes}
+    
     try:
-        response = requests.post(upload_url, headers=headers, data=file_bytes)
+        response = requests.post(upload_url, headers=headers, files=files)
         response.raise_for_status()
         doc = response.json()
         doc_id = doc.get('id')
@@ -50,7 +51,6 @@ def analyze_invoice_with_parseur(file_bytes, mailbox_id, api_key):
 def _format_result(parsed):
     """Convert Parseur's output to the schema expected by the app."""
     commodities = []
-    # The table field must be named 'commodities' in your Parseur mailbox
     table = parsed.get('commodities', {}).get('value', [])
     for item in table:
         commodities.append({
