@@ -54,8 +54,28 @@ def analyze_invoice(text, api_key):
             temperature=0
         )
         content = response.choices[0].message.content
+
+        # 🔍 Log the raw response (visible in Streamlit logs)
+        print("=" * 50)
+        print("RAW GROQ RESPONSE:")
+        print(content)
+        print("=" * 50)
+
+        # Clean the response: remove markdown code blocks and any text outside JSON
         content = re.sub(r'^```json\s*', '', content)
         content = re.sub(r'\s*```$', '', content)
-        return json.loads(content)
+        
+        # Find the first '{' and the last '}' to extract pure JSON
+        start = content.find('{')
+        end = content.rfind('}')
+        if start != -1 and end != -1 and end > start:
+            json_str = content[start:end+1]
+            return json.loads(json_str)
+        else:
+            # If no braces found, try parsing the whole content
+            return json.loads(content)
+
+    except json.JSONDecodeError as e:
+        return {"error": f"JSON parse error: {str(e)}", "raw_response": content if 'content' in locals() else None}
     except Exception as e:
         return {"error": str(e)}
