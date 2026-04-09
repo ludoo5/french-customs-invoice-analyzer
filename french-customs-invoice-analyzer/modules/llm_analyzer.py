@@ -46,7 +46,7 @@ def analyze_invoice(text, api_key):
     client = Groq(api_key=api_key)
     try:
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",  # switched to more stable model
+            model="llama-3.1-8b-instant",  # more stable
             messages=[
                 {"role": "system", "content": "You are a customs invoice parser. Return ONLY valid JSON. Do not include any other text, explanations, or markdown."},
                 {"role": "user", "content": CUSTOMS_PROMPT.format(text=text[:12000])}
@@ -70,7 +70,6 @@ def analyze_invoice(text, api_key):
             return json.loads(content)
 
     except json.JSONDecodeError as e:
-        # Return the raw response so we can see it in the Streamlit error
         raw = content if 'content' in locals() else "No response content"
         return {"error": f"JSON parse error: {str(e)}", "raw_response": raw[:500]}
     except Exception as e:
