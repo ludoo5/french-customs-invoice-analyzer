@@ -1,9 +1,9 @@
 streamlit
 pdfplumber
-
 pillow
 langdetect
-
 ddgs
 pandas
 parseur-py
+
+
