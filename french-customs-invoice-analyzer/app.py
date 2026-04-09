@@ -53,19 +53,11 @@ if uploaded_file and groq_key:
 
     st.success("✅ Text extraction complete.")
 
-    # Step 2: LLM analysis
-    with st.spinner("🤖 Analyzing with AI (Groq)..."):
-        invoice_data = analyze_invoice(raw_text, groq_key)
+    # Step 2: Analyze invoice using regex (no API call)
+    with st.spinner("🔍 Analyzing invoice text..."):
+        invoice_data = analyze_invoice(raw_text, groq_key)  # groq_key not used but kept for compatibility
 
-    # Step 3: Handle analysis error
-    if "error" in invoice_data:
-    st.error(f"Analysis failed: {invoice_data['error']}")
-    if "raw_response" in invoice_data:
-        st.text("Raw Groq response...")
-        st.code(invoice_data["raw_response"])
-    st.stop()
-
-    # Step 4: Web search enrichment
+    # Step 3: Web search enrichment (if enabled)
     if use_web_search:
         with st.spinner("🌐 Searching for missing information..."):
             # Only try to find missing EORI if shipment type is NOT C2C
@@ -109,16 +101,16 @@ if uploaded_file and groq_key:
 
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Sender Name", invoice_data.get("sender_name", "❓"))
+        st.metric("Sender Name", invoice_data.get("sender_name") or "Not found")
         st.metric("Sender EORI", invoice_data.get("sender_eori") or "Not found")
         if invoice_data.get("sender_siren"):
             st.caption(f"SIREN: {invoice_data['sender_siren']}")
-        st.metric("Receiver Name", invoice_data.get("receiver_name", "❓"))
+        st.metric("Receiver Name", invoice_data.get("receiver_name") or "Not found")
         st.metric("Receiver EORI", invoice_data.get("receiver_eori") or "Not found")
 
     with col2:
-        st.metric("Document Number", invoice_data.get("document_number", "❓"))
-        st.metric("Shipment Type", invoice_data.get("type_of_shipment", "❓"))
+        st.metric("Document Number", invoice_data.get("document_number") or "Not found")
+        st.metric("Shipment Type", invoice_data.get("type_of_shipment") or "Not found")
         st.metric("Airport Code", invoice_data.get("airport_code") or "Not found")
         value = invoice_data.get("value")
         if value:
