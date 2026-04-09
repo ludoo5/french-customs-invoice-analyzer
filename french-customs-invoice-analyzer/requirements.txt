@@ -4,6 +4,6 @@ pillow
 langdetect
 ddgs
 pandas
-parseur-py
+requests
 
 
