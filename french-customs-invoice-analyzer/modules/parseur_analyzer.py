@@ -1,51 +1,58 @@
-# modules/parseur_analyzer.py
 import streamlit as st
-import parseur
+import requests
 import time
 
-@st.cache_resource
-def init_parseur_client(api_key):
-    """Initialize the Parseur client with your API key."""
-    parseur.api_key = api_key
-
-def analyze_invoice_with_parseur(file_bytes, mailbox_id):
+def analyze_invoice_with_parseur(file_bytes, mailbox_id, api_key):
     """
-    Uploads an invoice file to a Parseur mailbox and polls for the parsed result.
+    Upload an invoice to Parseur and wait for the extracted data.
+    Returns a dictionary matching the required schema, or None on failure.
     """
+    # 1. Upload document
+    upload_url = f"https://api.parseur.com/api/mailboxes/{mailbox_id}/documents"
+    headers = {
+        "Authorization": f"Token {api_key}",
+        "Content-Type": "application/octet-stream"
+    }
     try:
-        # Upload the document
-        document = parseur.Document.create(mailbox_id=int(mailbox_id), file=file_bytes)
-        document_id = document['id']
-
-        # Poll until processed
-        with st.spinner('Waiting for Parseur to process the invoice...'):
-            for _ in range(30):
-                doc_status = parseur.Document.retrieve(id=document_id)
-                status = doc_status['status']
-                if status == 'processed':
-                    parsed_result = doc_status['parsed']
-                    break
-                elif status == 'failed':
-                    st.error(f"Parseur processing failed.")
-                    return None
-                time.sleep(1)
-            else:
-                st.error("Parseur processing timed out.")
-                return None
-
-        # Format the result to match your app's expected schema
-        return format_parseur_result(parsed_result)
-
+        response = requests.post(upload_url, headers=headers, data=file_bytes)
+        response.raise_for_status()
+        doc = response.json()
+        doc_id = doc.get('id')
+        if not doc_id:
+            st.error("Parseur did not return a document ID.")
+            return None
     except Exception as e:
-        st.error(f"Parseur API error: {e}")
+        st.error(f"Upload to Parseur failed: {e}")
         return None
 
-def format_parseur_result(parsed_data):
-    """Map Parseur's output to your app's JSON structure."""
+    # 2. Poll for processing result
+    result_url = f"https://api.parseur.com/api/documents/{doc_id}"
+    with st.spinner("Processing with Parseur (up to 30 seconds)..."):
+        for _ in range(30):
+            try:
+                res = requests.get(result_url, headers=headers)
+                res.raise_for_status()
+                data = res.json()
+                status = data.get('status')
+                if status == 'processed':
+                    parsed = data.get('parsed', {})
+                    return _format_result(parsed)
+                elif status == 'failed':
+                    st.error("Parseur failed to process the invoice.")
+                    return None
+                time.sleep(1)
+            except Exception as e:
+                st.error(f"Error while polling Parseur: {e}")
+                return None
+    st.error("Parseur processing timed out after 30 seconds.")
+    return None
+
+def _format_result(parsed):
+    """Convert Parseur's output to the schema expected by the app."""
     commodities = []
-    # Adjust the key names based on what you named your fields in Parseur
-    table_data = parsed_data.get('commodities', {}).get('value', [])
-    for item in table_data:
+    # The table field must be named 'commodities' in your Parseur mailbox
+    table = parsed.get('commodities', {}).get('value', [])
+    for item in table:
         commodities.append({
             "description_original": item.get('description_original', {}).get('value'),
             "common_name_en": item.get('common_name_en', {}).get('value'),
@@ -56,15 +63,15 @@ def format_parseur_result(parsed_data):
         })
 
     return {
-        "sender_name": parsed_data.get('sender_name', {}).get('value'),
-        "sender_eori": parsed_data.get('sender_eori', {}).get('value'),
-        "sender_siren": parsed_data.get('sender_siren', {}).get('value'),
-        "receiver_name": parsed_data.get('receiver_name', {}).get('value'),
-        "receiver_eori": parsed_data.get('receiver_eori', {}).get('value'),
-        "receiver_country": parsed_data.get('receiver_country', {}).get('value'),
-        "document_number": parsed_data.get('document_number', {}).get('value'),
-        "type_of_shipment": parsed_data.get('type_of_shipment', {}).get('value'),
-        "value": parsed_data.get('value', {}).get('value'),
+        "sender_name": parsed.get('sender_name', {}).get('value'),
+        "sender_eori": parsed.get('sender_eori', {}).get('value'),
+        "sender_siren": parsed.get('sender_siren', {}).get('value'),
+        "receiver_name": parsed.get('receiver_name', {}).get('value'),
+        "receiver_eori": parsed.get('receiver_eori', {}).get('value'),
+        "receiver_country": parsed.get('receiver_country', {}).get('value'),
+        "document_number": parsed.get('document_number', {}).get('value'),
+        "type_of_shipment": parsed.get('type_of_shipment', {}).get('value'),
+        "value": parsed.get('value', {}).get('value'),
         "airport_code": None,
         "commodities": commodities
     }
