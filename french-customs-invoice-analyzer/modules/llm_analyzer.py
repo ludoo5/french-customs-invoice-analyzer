@@ -26,7 +26,7 @@ def analyze_invoice(text, api_key=None):
     # Sender VAT / EORI
     vat_match = re.search(r'VAT No\.:\s*([A-Z0-9]+)', text, re.IGNORECASE)
     if vat_match:
-        result["sender_eori"] = vat_match.group(1)  # Use VAT as EORI if no separate EORI
+        result["sender_eori"] = vat_match.group(1)
     
     # --- RECEIVER (To block) ---
     to_match = re.search(r'To\s*\n-+\s*\n.*?Name and address of addressee\s*\n(.*?)(?=\n-|\nContact|\Z)', text, re.DOTALL | re.IGNORECASE)
@@ -35,13 +35,12 @@ def analyze_invoice(text, api_key=None):
         lines = receiver_block.strip().split('\n')
         if lines:
             result["receiver_name"] = lines[0].strip()
-            # Try to extract country from address (last line often)
             for line in lines[::-1]:
                 if re.search(r'\b(Switzerland|France|Germany|Belgium|Italy|Spain)\b', line, re.IGNORECASE):
                     result["receiver_country"] = line.strip()
                     break
     
-    # Receiver VAT / EORI
+    # Receiver VAT / EORI (if different from sender)
     receiver_vat_match = re.search(r'VAT No\.:\s*([A-Z0-9]+)', text, re.IGNORECASE)
     if receiver_vat_match and receiver_vat_match.group(1) != result.get("sender_eori"):
         result["receiver_eori"] = receiver_vat_match.group(1)
@@ -61,19 +60,14 @@ def analyze_invoice(text, api_key=None):
             pass
     
     # --- COMMODITIES (table rows) ---
-    # The table looks like: | Description | Quantity | Weight | Value | HS code | Origin |
-    # We'll capture lines between the header and the "Totals" row.
     table_start = re.search(r'Description of content.*?Quantity.*?Weight.*?Value.*?HS tariff number.*?Country of origin', text, re.IGNORECASE | re.DOTALL)
     if table_start:
-        # From that point, capture until "Totals"
         table_section = text[table_start.end():]
         totals_match = re.search(r'Totals', table_section, re.IGNORECASE)
         if totals_match:
             table_section = table_section[:totals_match.start()]
-        # Split into lines
         lines = table_section.split('\n')
         for line in lines:
-            # Each row: ski-boots    2    1    200.00    64021210    BE
             parts = re.split(r'\s{2,}', line.strip())
             if len(parts) >= 6:
                 desc = parts[0].strip()
@@ -98,16 +92,14 @@ def analyze_invoice(text, api_key=None):
                     "country_of_origin": origin if origin != '' else None
                 })
     
-    # --- SHIPMENT TYPE (B2B because both are companies) ---
-    if "DHL Parcel" in result.get("sender_name", "") or "DHL Parcel" in result.get("receiver_name", ""):
+    # --- SHIPMENT TYPE (safely handle None) ---
+    sender_name = result.get("sender_name") or ""
+    receiver_name = result.get("receiver_name") or ""
+    if "DHL Parcel" in sender_name or "DHL Parcel" in receiver_name:
         result["type_of_shipment"] = "B2B"
-    elif result["sender_name"] and result["receiver_name"]:
-        # Both look like businesses
+    elif sender_name and receiver_name:
         result["type_of_shipment"] = "B2B"
     else:
         result["type_of_shipment"] = "Unknown"
-    
-    # --- AIRPORT CODE (will be filled by web search later) ---
-    # Keep as None for now, web search will set it.
     
     return result
