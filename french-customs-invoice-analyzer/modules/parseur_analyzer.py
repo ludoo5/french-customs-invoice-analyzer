@@ -3,6 +3,10 @@ import requests
 import time
 
 def analyze_invoice_with_parseur(file_bytes, mailbox_id, api_key):
+    """
+    Upload an invoice to Parseur and wait for the extracted data.
+    Returns a dictionary matching the required schema, or None on failure.
+    """
     # 1. Upload document
     upload_url = f"https://api.parseur.com/parser/{mailbox_id}/upload"
     headers = {"Authorization": f"Token {api_key}"}
@@ -13,13 +17,14 @@ def analyze_invoice_with_parseur(file_bytes, mailbox_id, api_key):
         response.raise_for_status()
         doc = response.json()
         
-        # DEBUG: show the full response
-        st.text("Parseur API response:")
-        st.json(doc)
-        
-        doc_id = doc.get('id')
+        # Extract DocumentID from the attachments list
+        attachments = doc.get('attachments', [])
+        if not attachments:
+            st.error("No attachments returned from Parseur.")
+            return None
+        doc_id = attachments[0].get('DocumentID')
         if not doc_id:
-            st.error(f"Parseur did not return a document ID. Full response: {doc}")
+            st.error("Parseur did not return a DocumentID.")
             return None
     except Exception as e:
         st.error(f"Upload to Parseur failed: {e}")
@@ -28,7 +33,7 @@ def analyze_invoice_with_parseur(file_bytes, mailbox_id, api_key):
             st.text(f"Response text: {response.text}")
         return None
 
-    # 2. Poll for result (same as before)
+    # 2. Poll for processing result
     result_url = f"https://api.parseur.com/api/documents/{doc_id}"
     with st.spinner("Processing with Parseur (up to 30 seconds)..."):
         for _ in range(30):
@@ -51,7 +56,7 @@ def analyze_invoice_with_parseur(file_bytes, mailbox_id, api_key):
     return None
 
 def _format_result(parsed):
-    # (same as before, keep it)
+    """Convert Parseur's output to the schema expected by the app."""
     commodities = []
     table = parsed.get('commodities', {}).get('value', [])
     for item in table:
@@ -63,6 +68,7 @@ def _format_result(parsed):
             "hs_code": item.get('hs_code', {}).get('value'),
             "country_of_origin": item.get('country_of_origin', {}).get('value')
         })
+
     return {
         "sender_name": parsed.get('sender_name', {}).get('value'),
         "sender_eori": parsed.get('sender_eori', {}).get('value'),
