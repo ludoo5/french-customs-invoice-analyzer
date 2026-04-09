@@ -1,6 +1,6 @@
 streamlit
 pdfplumber
-pytesseract
+easyocr
 pillow
 langdetect
 groq
