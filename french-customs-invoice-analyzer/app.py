@@ -49,14 +49,15 @@ if uploaded_file and groq_key:
     with st.spinner("🤖 Analyzing with AI (Groq)..."):
         invoice_data = analyze_invoice(raw_text, groq_key)
 
+    # Step 3: Handle analysis error
     if "error" in invoice_data:
-    st.error(f"Analysis failed: {invoice_data['error']}")
-    if "raw_response" in invoice_data:
-        st.text("Raw Groq response (first 500 chars):")
-        st.code(invoice_data["raw_response"])
-    st.stop()
+        st.error(f"Analysis failed: {invoice_data['error']}")
+        if "raw_response" in invoice_data:
+            st.text("Raw Groq response (first 500 chars):")
+            st.code(invoice_data["raw_response"])
+        st.stop()
 
-    # Step 3: Web search enrichment
+    # Step 4: Web search enrichment
     if use_web_search:
         with st.spinner("🌐 Searching for missing information..."):
             # Only try to find missing EORI if shipment type is NOT C2C
